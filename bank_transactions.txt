@@ -1,0 +1,82 @@
+create or replace package pkg_for_transaction as
+procedure deposit_amt (p_cust_id number ,p_amount number);
+procedure withdrawl_amt (p_cust_id number,p_txn_amount number);
+procedure  money_transfer (p_cust1_id number,p_cust2_id number, p_txn_amount number);
+minimum_balance exception;
+end pkg_for_transaction;
+/
+create or replace package body pkg_for_transaction as
+procedure deposit_amt (p_cust_id number ,p_amount number) as
+var_acc_id number(10);
+begin
+select acc_id into var_acc_id 
+from account 
+where cust_id=p_cust_id;
+
+update account 
+set balance = balance+p_amount
+where acc_id=var_acc_id;
+
+insert into acc_txn values(sqqn_id.nextval,var_acc_id,sysdate,'dep',p_amount);
+commit;
+exception
+when no_data_found then
+    dbms_output.put_line('no such account id  exists');
+end;
+procedure withdrawl_amt (p_cust_id number  ,p_txn_amount number) as
+var_acc_id number(10);
+var_acc_balance number(10);
+begin
+select acc_id ,balance into var_acc_id ,var_acc_balance
+from account 
+where cust_id=p_cust_id;
+if var_acc_balance-p_txn_amount >500 then
+    update account 
+    set balance = balance-p_txn_amount
+    where acc_id=var_acc_id;
+    insert into acc_txn values(sqqn_id.nextval,var_acc_id,sysdate,'withdrawl',p_txn_amount);
+    commit;
+else
+    raise minimum_balance;
+end if;
+exception 
+when no_data_found then
+    dbms_output.put_line('no such account id  exists');
+when minimum_balance then
+    dbms_output.put_line('minimum balance should be 500');
+end ;
+
+procedure  money_transfer (p_cust1_id number,p_cust2_id number, p_txn_amount number) as 
+var_acc_id number(10);
+var_acc2_id number(10);
+var_acc_balance number(10);
+begin
+select acc_id ,balance into var_acc_id ,var_acc_balance
+from account 
+where cust_id=p_cust1_id;
+
+select acc_id into var_acc2_id 
+from account 
+where cust_id=p_cust2_id;
+
+if var_acc_balance-p_txn_amount >500 then
+    update account 
+    set balance = balance-p_txn_amount
+    where acc_id=var_acc_id;
+    
+    update account 
+    set balance = balance+p_txn_amount
+    where acc_id=var_acc2_id;
+
+    insert into acc_txn values(sqqn_id.nextval,var_acc_id,sysdate,'moneyt transfered',p_txn_amount);
+    insert into acc_txn values(sqqn_id.nextval,var_acc2_id,sysdate,'money received',p_txn_amount);
+else 
+raise minimum_balance;
+end if;
+exception 
+when minimum_balance then
+    dbms_output.put_line('minimum baance should be 500');    
+when no_data_found then
+    dbms_output.put_line('no such account id  exists');
+end;
+end;
